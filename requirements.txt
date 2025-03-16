@@ -1,7 +1,5 @@
 streamlit
 gtts
-time
-random
-base64
-os
-tempfile
+pandas
+numpy
+
