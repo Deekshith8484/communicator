@@ -74,7 +74,7 @@ if "current_step" not in st.session_state:
     st.session_state.current_step = 0
 
 # Streamlit UI
-st.title("🧠 Patient-Carer Communication (Daily Scenario)")
+st.title("🧠 Mindstorms Communicator")
 st.write("_Carer is interacting with the patient using BCI technology._")
 
 # Custom CSS for chat layout
