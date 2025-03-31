@@ -37,47 +37,42 @@ patient_responses = [
     "Music.", "Soft instrumental."
 ]
 
-# Function to generate speech and return the HTML autoplay audio tag
+# Generate speech and return autoplay HTML tag
+@st.cache_data(show_spinner=False)
 def text_to_speech(text):
-    # Create a temporary file
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
     filename = temp_file.name
-    temp_file.close()  # Close the file to allow other processes to use it
+    temp_file.close()
 
-    # Generate speech
     tts = gTTS(text=text, lang="en")
     tts.save(filename)
 
-    # Convert audio file to base64
     with open(filename, "rb") as f:
         audio_base64 = base64.b64encode(f.read()).decode()
 
-    # Return autoplay HTML audio tag
+    try:
+        os.remove(filename)
+    except PermissionError:
+        pass
+
     audio_html = f"""
         <audio autoplay>
             <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
         </audio>
     """
-
-    # Allow the file to finish playing before removing it
-    time.sleep(1)
-    
-    try:
-        os.remove(filename)  # Safely remove the file
-    except PermissionError:
-        pass  # Ignore file permission error if it's still in use
-
     return audio_html
 
 # Initialize session state
 if "current_step" not in st.session_state:
     st.session_state.current_step = 0
+if "audio_html" not in st.session_state:
+    st.session_state.audio_html = []
 
-# Streamlit UI
+# Title
 st.title("🧠 Mindstorms Communicator")
 st.write("_Carer is interacting with the patient using BCI technology._")
 
-# Custom CSS for chat layout
+# Custom styling
 st.markdown("""
     <style>
     .chat-container {
@@ -92,62 +87,69 @@ st.markdown("""
         padding: 10px;
         border-radius: 10px;
         font-size: 18px;
-        color: white;  /* White text */
-        background: none; /* No background */
+        color: white;
+        background: none;
     }
     .processing {
         align-self: center;
         font-style: italic;
         color: gray;
-        background: none; /* No background */
+        background: none;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Create a div container for the chat
+# Restart button
+if st.button("🔁 Restart Conversation"):
+    st.session_state.current_step = 0
+    st.session_state.audio_html = []
+    st.experimental_rerun()
+
+# Chat container
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
-# Display all previous Q&A pairs with correct audio flow
+# Display all previous Q&A and audio
 for i in range(st.session_state.current_step):
     st.markdown(f'<div class="chat-message"><strong>Carer:</strong> {conversation[i]}</div>', unsafe_allow_html=True)
-    st.markdown(text_to_speech(conversation[i]), unsafe_allow_html=True)  # Play Carer's question
-    time.sleep(3)  # Ensure no overlap
+    st.markdown(st.session_state.audio_html[i][0], unsafe_allow_html=True)
+    time.sleep(3)
+
     st.markdown(f'<div class="chat-message"><strong>Patient:</strong> {patient_responses[i]}</div>', unsafe_allow_html=True)
-    st.markdown(text_to_speech(patient_responses[i]), unsafe_allow_html=True)  # Play Patient's response
-    time.sleep(3)  # Pause to let response finish before next question
+    st.markdown(st.session_state.audio_html[i][1], unsafe_allow_html=True)
+    time.sleep(3)
 
-# Show the current question from the Carer
+# Handle current step
 if st.session_state.current_step < len(conversation):
-    current_question = conversation[st.session_state.current_step]
+    index = st.session_state.current_step
+    question = conversation[index]
+    response = patient_responses[index]
 
-    # Show the Carer's question (White text, No background)
-    st.markdown(f'<div class="chat-message"><strong>Carer:</strong> {current_question}</div>', unsafe_allow_html=True)
-    st.markdown(text_to_speech(current_question), unsafe_allow_html=True)  # Auto-play Carer's question
-    time.sleep(3)  # Pause to let Carer's voice finish
+    # Show question
+    st.markdown(f'<div class="chat-message"><strong>Carer:</strong> {question}</div>', unsafe_allow_html=True)
+    q_audio = text_to_speech(question)
+    st.markdown(q_audio, unsafe_allow_html=True)
+    time.sleep(3)
 
-    # Show "Processing brain signals..." (Gray italic text, No background, No voice-over)
+    # Show processing
     st.markdown('<div class="processing">🧠 Processing brain signals...</div>', unsafe_allow_html=True)
-    time.sleep(5)  # Simulating signal processing delay
-
-    # Generate and display Patient's response (White text, No background)
-    response = patient_responses[st.session_state.current_step]
-    st.markdown(f'<div class="chat-message"><strong>Patient:</strong> {response}</div>', unsafe_allow_html=True)
-
-    # Play only the Patient's response after processing delay (No overlap)
-    st.markdown(text_to_speech(response), unsafe_allow_html=True) 
-    time.sleep(3)  # Ensure no overlap before next question
-
-    # Wait another 5 seconds before moving to the next question
     time.sleep(5)
 
-    # Move to the next question and rerun
+    # Show response
+    st.markdown(f'<div class="chat-message"><strong>Patient:</strong> {response}</div>', unsafe_allow_html=True)
+    r_audio = text_to_speech(response)
+    st.markdown(r_audio, unsafe_allow_html=True)
+    time.sleep(3)
+
+    # Save audio to session state
+    st.session_state.audio_html.append((q_audio, r_audio))
+    
+    # Wait before next step
+    time.sleep(5)
     st.session_state.current_step += 1
     st.rerun()
 
-# Close the chat container div
-st.markdown('</div>', unsafe_allow_html=True)
-
-# Final completion message when all questions are answered
-if st.session_state.current_step == len(conversation):
+# End of conversation
+else:
+    st.markdown('</div>', unsafe_allow_html=True)
     st.balloons()
     st.write("🎉 Conversation complete! The carer has received the patient's responses.")
