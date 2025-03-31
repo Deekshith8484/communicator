@@ -1,12 +1,13 @@
 import streamlit as st
 import time
-import random
 import base64
 import os
 import tempfile
 from gtts import gTTS
 
-# Define the caregiving scenario
+# -------------------
+# Scenario Setup
+# -------------------
 conversation = [
     "Good morning! How are you feeling today?",
     "Would you like to rest a little longer or have some breakfast?",
@@ -29,7 +30,6 @@ conversation = [
     "Soft instrumental or something more upbeat?",
 ]
 
-# Corresponding patient responses
 patient_responses = [
     "Good morning! A little tired.", "Breakfast.", "Toast and eggs.", "Scrambled.",
     "Jam.", "Strawberry.", "No.", "Pillow.", "For my back.", "Tea.", "Honey.",
@@ -37,7 +37,9 @@ patient_responses = [
     "Music.", "Soft instrumental."
 ]
 
-# Generate speech and return autoplay HTML tag
+# -------------------
+# TTS Utility Function
+# -------------------
 @st.cache_data(show_spinner=False)
 def text_to_speech(text):
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
@@ -55,24 +57,26 @@ def text_to_speech(text):
     except PermissionError:
         pass
 
-    audio_html = f"""
+    return f"""
         <audio autoplay>
             <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
         </audio>
     """
-    return audio_html
 
-# Initialize session state
+# -------------------
+# Initialize State
+# -------------------
 if "current_step" not in st.session_state:
     st.session_state.current_step = 0
 if "audio_html" not in st.session_state:
     st.session_state.audio_html = []
 
-# Title
+# -------------------
+# UI Header and Styling
+# -------------------
 st.title("🧠 Mindstorms Communicator")
 st.write("_Carer is interacting with the patient using BCI technology._")
 
-# Custom styling
 st.markdown("""
     <style>
     .chat-container {
@@ -99,16 +103,20 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Restart button
+# -------------------
+# Restart Button
+# -------------------
 if st.button("🔁 Restart Conversation"):
     st.session_state.current_step = 0
     st.session_state.audio_html = []
     st.experimental_rerun()
 
-# Chat container
+# -------------------
+# Chat Display
+# -------------------
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
-# Display all previous Q&A and audio
+# Display previously played conversation
 for i in range(st.session_state.current_step):
     st.markdown(f'<div class="chat-message"><strong>Carer:</strong> {conversation[i]}</div>', unsafe_allow_html=True)
     st.markdown(st.session_state.audio_html[i][0], unsafe_allow_html=True)
@@ -118,37 +126,37 @@ for i in range(st.session_state.current_step):
     st.markdown(st.session_state.audio_html[i][1], unsafe_allow_html=True)
     time.sleep(3)
 
-# Handle current step
+# Handle current interaction
 if st.session_state.current_step < len(conversation):
     index = st.session_state.current_step
     question = conversation[index]
     response = patient_responses[index]
 
-    # Show question
+    # Carer's message
     st.markdown(f'<div class="chat-message"><strong>Carer:</strong> {question}</div>', unsafe_allow_html=True)
     q_audio = text_to_speech(question)
     st.markdown(q_audio, unsafe_allow_html=True)
     time.sleep(3)
 
-    # Show processing
+    # Processing
     st.markdown('<div class="processing">🧠 Processing brain signals...</div>', unsafe_allow_html=True)
     time.sleep(5)
 
-    # Show response
+    # Patient's response
     st.markdown(f'<div class="chat-message"><strong>Patient:</strong> {response}</div>', unsafe_allow_html=True)
     r_audio = text_to_speech(response)
     st.markdown(r_audio, unsafe_allow_html=True)
     time.sleep(3)
 
-    # Save audio to session state
+    # Save audio pair to session state
     st.session_state.audio_html.append((q_audio, r_audio))
-    
-    # Wait before next step
+
+    # Advance to next step
     time.sleep(5)
     st.session_state.current_step += 1
     st.rerun()
 
-# End of conversation
+# End of chat
 else:
     st.markdown('</div>', unsafe_allow_html=True)
     st.balloons()
